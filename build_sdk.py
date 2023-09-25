@@ -464,7 +464,8 @@ SUPPORTED_CONFIGS = (
         kernel_options = {
             "KernelDebugBuild": True,
             "KernelPrinting": True,
-            "KernelVerificationBuild": False
+            "KernelVerificationBuild": False,
+	    "KernelGdb": True
         }
     ),
     # @ivanv: This has ARM specific kernel options

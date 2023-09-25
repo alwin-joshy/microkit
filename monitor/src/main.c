@@ -113,6 +113,12 @@ seL4_Word *system_invocation_data = (void*)0x80000000;
 
 struct untyped_info untyped_info;
 
+char *strcpy(char *dst, const char *src) {
+    for (; (*dst=*src); src++, dst++);
+
+    return dst;
+}
+
 static char *
 ec_to_string(uintptr_t ec)
 {
@@ -694,6 +700,26 @@ main(seL4_BootInfo *bi)
     for (unsigned idx = 0; idx < system_invocation_count; idx++) {
         offset = perform_invocation(system_invocation_data, offset, idx);
     }
+
+#ifdef CONFIG_DEBUG_BUILD
+    /* Set up the monitor as the initial thread */
+    puts("MON|INFO: register monitor in kgdb\n");
+    seL4_DebugKGDBStartThread(0);
+
+    puts("MON|INFO: Waiting for gdb connection to be established...\n");
+    /* Wait for a GDB connection to be initiated*/
+    seL4_DebugEnterKGDB();
+
+    /* Set up all the protection domains */
+    for (unsigned int idx = 0; idx < MAX_TCBS; idx++) {
+        seL4_Word tcb = tcbs[idx];
+        /* Only call seL4_DebugNameThread if we have a valid TCB/PD. */
+        if (tcb != 0) {
+            seL4_DebugNameThread(tcb, pd_names[idx]);
+            seL4_DebugKGDBStartThread(tcb);
+        }
+    }
+#endif
 
     puts("MON|INFO: completed system invocations\n");
 
