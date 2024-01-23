@@ -92,6 +92,7 @@ class ProtectionDomain:
     cpu_affinity: int
     pp: bool
     passive: bool
+    debugger: bool
     program_image: Path
     maps: Tuple[SysMap, ...]
     irqs: Tuple[SysIrq, ...]
@@ -317,6 +318,11 @@ def xml2pd(pd_xml: ET.Element, plat_desc: PlatformDescription, is_child: bool=Fa
 
     pp = str_to_bool(pd_xml.attrib.get("pp", "false"))
     passive = str_to_bool(pd_xml.attrib.get("passive", "false"))
+    debugger = str_to_bool(pd_xml.attrib.get("debugger", "false"))
+
+    # @alwinj: is this necessary?
+    if debugger and is_child:
+        raise UserError("The debugger PD should not be the child of any other PD")
 
     maps = []
     irqs = []
@@ -363,7 +369,11 @@ def xml2pd(pd_xml: ET.Element, plat_desc: PlatformDescription, is_child: bool=Fa
                 region_paddr = checked_lookup(child, "region_paddr")
                 setvars.append(SysSetVar(symbol, region_paddr=region_paddr))
             elif child.tag == "protection_domain":
-                child_pds.append(xml2pd(child, plat_desc, is_child=True))
+                child_pd = xml2pd(child, plat_desc, is_child=True)
+                if child_pd.debugger:
+                    # @alwinj: is this necessary?
+                    raise UserError("The debugger PD should not have any children")
+                child_pds.append(child_pd)
             elif child.tag == "virtual_machine":
                 if not plat_desc.kernel_is_hypervisor:
                     raise UserError("virtual_machine only available when kernel is built as a hypervisor")
@@ -387,6 +397,7 @@ def xml2pd(pd_xml: ET.Element, plat_desc: PlatformDescription, is_child: bool=Fa
         cpu,
         pp,
         passive,
+        debugger,
         program_image,
         tuple(maps),
         tuple(irqs),

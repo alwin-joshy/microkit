@@ -638,6 +638,9 @@ def build_system(
         invocation_table_size: int,
         system_cnode_size: int,
         search_paths: List[Path],
+        # names_array: bytearray,
+        # paths_array: bytearray
+
     ) -> BuiltSystem:
     """Build system as description by the inputs, with a 'BuiltSystem' object as the output."""
     assert is_power_of_two(system_cnode_size)
@@ -1482,7 +1485,7 @@ def build_system(
     ## Mint access to the child TCB in the PD Cspace
     for cnode_obj, pd in zip(cnode_objects, system.protection_domains):
         for maybe_child_tcb, maybe_child_pd in zip(tcb_objects, system.protection_domains):
-            if maybe_child_pd.parent is pd:
+            if maybe_child_pd.parent is pd #or (maybe_child_pd != pd and pd.debugger):
                 cap_idx = BASE_TCB_CAP + maybe_child_pd.id_
                 system_invocations.append(
                     Sel4CnodeMint(
@@ -1808,6 +1811,10 @@ def build_system(
             except KeyError:
                 raise Exception(f"Unable to patch variable '{setvar.symbol}' in protection domain: '{pd.name}': variable not found.")
 
+        # if pd.debugger:
+        #     pd_elf_files[pd].write_symbol("pd_names", names_array)
+        #     pd_elf_files[pd].write_symbol("pd_elfs", paths_array)
+
     return BuiltSystem(
         number_of_system_caps = final_cap_slot, #init_system._cap_slot,
         invocation_data_size = len(system_invocation_data),
@@ -1957,6 +1964,14 @@ def main() -> int:
     invocation_table_size = kernel_config.minimum_page_size
     system_cnode_size = 2
 
+    # names_array = bytearray([0] * (64 * 16))
+    # paths_array = bytearray([0] * (64 * 32))
+    # for idx, pd in enumerate(system_description.protection_domains, 1):
+    #     nm = pd.name.encode("utf8")[:15]
+    #     elf = pd.program_image.encode("utf8")[:31]
+    #     names_array[idx * 16:idx * 16+len(nm)] = nm
+    #     paths_array[idx * 32:idx * 32+len(elf)] = elf
+
     while True:
         built_system = build_system(
             kernel_config,
@@ -1966,6 +1981,8 @@ def main() -> int:
             invocation_table_size,
             system_cnode_size,
             search_paths,
+            # names_array,
+            # paths_array
         )
         print(f"BUILT: {system_cnode_size=} {built_system.number_of_system_caps=} {invocation_table_size=} {built_system.invocation_data_size=}")
         if (built_system.number_of_system_caps <= system_cnode_size and
@@ -2040,11 +2057,8 @@ def main() -> int:
     monitor_elf.write_symbol("tcbs", pack("<Q" + "Q" * len(tcb_caps), 0, *tcb_caps))
     monitor_elf.write_symbol("scheduling_contexts", pack("<Q" + "Q" * len(sched_caps), 0, *sched_caps))
     monitor_elf.write_symbol("notification_caps", pack("<Q" + "Q" * len(ntfn_caps), 0, *ntfn_caps))
-    names_array = bytearray([0] * (64 * 16))
-    for idx, pd in enumerate(system_description.protection_domains, 1):
-        nm = pd.name.encode("utf8")[:15]
-        names_array[idx * 16:idx * 16+len(nm)] = nm
     monitor_elf.write_symbol("pd_names", names_array)
+    # monitor_elf.write_symbol("pd_elfs", paths_array)
 
 
     # B: The loader
