@@ -187,7 +187,7 @@ SEL4_OBJECT_TYPE_NAMES = {
 # @ivanv: The value of TCB size depends on config on x86 and RISC-V
 # (e.g on RISC-V it depends on whether there is FPU support. I need to fix this)
 FIXED_OBJECT_SIZES = {
-    Sel4Object.Tcb: 1 << 11,
+    Sel4Object.Tcb: 1 << 12,
     Sel4Object.Endpoint: 1 << 4,
     Sel4Object.Notification: 1 << 6,
     Sel4Object.Reply: 1 << 5,
@@ -701,75 +701,81 @@ class Sel4Label(IntEnum):
     TCBResume = 13
     TCBBindNotification = 14
     TCBUnbindNotification = 15
-    TCBSetTLSBase = 16
+    TCBSetBreakpoint = 16
+    TCBGetBreakpoint = 17
+    TCBUnsetBreakpoint = 18
+    TCBConfigureSingleStepping = 19
+    TCBSetTLSBase = 20
     # CNode
-    CNodeRevoke = 17
-    CNodeDelete = 18
-    CNodeCancelBadgedSends = 19
-    CNodeCopy = 20
-    CNodeMint = 21
-    CNodeMove = 22
-    CNodeMutate = 23
-    CNodeRotate = 24
+    CNodeRevoke = 21
+    CNodeDelete = 22
+    CNodeCancelBadgedSends = 23
+    CNodeCopy = 24
+    CNodeMint = 25
+    CNodeMove = 26
+    CNodeMutate = 27
+    CNodeRotate = 28
     # IRQ
-    IRQIssueIRQHandler = 25
-    IRQAckIRQ = 26
-    IRQSetIRQHandler = 27
-    IRQClearIRQHandler = 28
+    IRQIssueIRQHandler = 29
+    IRQAckIRQ = 30
+    IRQSetIRQHandler = 31
+    IRQClearIRQHandler = 32
     # Domain
-    DomainSetSet = 29
+    DomainSetSet = 33
     # Sched
-    SchedControlConfigureFlags = 30
-    SchedContextBind = 31
-    SchedContextUnbind = 32
-    SchedContextUnbindObject = 33
-    SchedContextConsumed = 34
-    SchedContextYieldTo = 35
+    SchedControlConfigureFlags = 34
+    SchedContextBind = 35
+    SchedContextUnbind = 36
+    SchedContextUnbindObject = 37
+    SchedContextConsumed = 38
+    SchedContextYieldTo = 39
     # ARM V Space
-    ARMVSpaceClean_Data = 36
-    ARMVSpaceInvalidate_Data = 37
-    ARMVSpaceCleanInvalidate_Data = 38
-    ARMVSpaceUnify_Instruction = 39
+    ARMVSpaceClean_Data = 40
+    ARMVSpaceInvalidate_Data = 41
+    ARMVSpaceCleanInvalidate_Data = 42
+    ARMVSpaceUnify_Instruction = 43
+    ARMVSpaceRead_Word = 44
+    ARMVSpaceWrite_Word = 45
     # ARM SMC forwarding
-    ARMSMCCall = 40
+    ARMSMCCall = 46
     # ARM Page Table
-    ARMPageTableMap = 41
-    ARMPageTableUnmap = 42
+    ARMPageTableMap = 47
+    ARMPageTableUnmap = 48
     # ARM Page
-    ARMPageMap = 43
-    ARMPageUnmap = 44
-    ARMPageClean_Data = 45
-    ARMPageInvalidate_Data = 46
-    ARMPageCleanInvalidate_Data = 47
-    ARMPageUnify_Instruction = 48
-    ARMPageGetAddress = 49
+    ARMPageMap = 49
+    ARMPageUnmap = 50
+    ARMPageClean_Data = 51
+    ARMPageInvalidate_Data = 52
+    ARMPageCleanInvalidate_Data = 53
+    ARMPageUnify_Instruction = 54
+    ARMPageGetAddress = 55
     # ARM ASID
-    ARMASIDControlMakePool = 50
-    ARMASIDPoolAssign = 51
+    ARMASIDControlMakePool = 56
+    ARMASIDPoolAssign = 57
     # ARM VCPU
-    ARMVCPUSetTCB = 52
-    ARMVCPUInjectIRQ = 53
-    ARMVCPUReadReg = 54
-    ARMVCPUWriteReg = 55
-    ARMVCPUAckVPPI = 56
+    ARMVCPUSetTCB = 58
+    ARMVCPUInjectIRQ = 59
+    ARMVCPUReadReg = 60
+    ARMVCPUWriteReg = 61
+    ARMVCPUAckVPPI = 62
     # ARM IRQ
-    ARMIRQIssueIRQHandlerTrigger = 57
+    ARMIRQIssueIRQHandlerTrigger = 63
     # RISC-V Page Table
-    RISCVPageTableMap = 58
-    RISCVPageTableUnmap = 59
+    RISCVPageTableMap = 64
+    RISCVPageTableUnmap = 65
     # RISC-V Page
-    RISCVPageMap = 60
-    RISCVPageUnmap = 61
-    RISCVPageGetAddress = 62
+    RISCVPageMap = 66
+    RISCVPageUnmap = 67
+    RISCVPageGetAddress = 68
     # RISC-V ASID
-    RISCVASIDControlMakePool = 63
-    RISCVASIDPoolAssign = 64
+    RISCVASIDControlMakePool = 69
+    RISCVASIDPoolAssign = 70
     # RISC-V IRQ
-    RISCVIRQIssueIRQHandlerTrigger = 65
+    RISCVIRQIssueIRQHandlerTrigger = 71
     # RISC-V VCPU
-    RISCVVCPUSetTCB = 66
-    RISCVVCPUReadReg = 67
-    RISCVVCPUWriteReg = 68
+    RISCVVCPUSetTCB = 72
+    RISCVVCPUReadReg = 73
+    RISCVVCPUWriteReg = 74
 
     def get_id(self, kernel_config: KernelConfig) -> int:
         if kernel_config.arch == KernelArch.AARCH64:
@@ -793,18 +799,18 @@ class Sel4Label(IntEnum):
 # respective kernel config. This has some duplication (the first 4 invocations are always the same).
 AARCH64_LABELS = {
     # ARM IRQ
-    Sel4Label.ARMIRQIssueIRQHandlerTrigger: 52
+    Sel4Label.ARMIRQIssueIRQHandlerTrigger: 58
 }
 
 AARCH64_HYP_LABELS = {
     # ARM VCPU
-    Sel4Label.ARMVCPUSetTCB: 52,
-    Sel4Label.ARMVCPUInjectIRQ: 53,
-    Sel4Label.ARMVCPUReadReg: 54,
-    Sel4Label.ARMVCPUWriteReg: 55,
-    Sel4Label.ARMVCPUAckVPPI: 56,
+    Sel4Label.ARMVCPUSetTCB: 58,
+    Sel4Label.ARMVCPUInjectIRQ: 59,
+    Sel4Label.ARMVCPUReadReg: 60,
+    Sel4Label.ARMVCPUWriteReg: 61,
+    Sel4Label.ARMVCPUAckVPPI: 62,
     # ARM IRQ
-    Sel4Label.ARMIRQIssueIRQHandlerTrigger: 57
+    Sel4Label.ARMIRQIssueIRQHandlerTrigger: 63
 }
 
 RISCV_LABELS = {
@@ -1493,7 +1499,7 @@ def calculate_rootserver_size(kernel_config: KernelConfig, initial_task_region: 
     root_cnode_bits = kernel_config.root_cnode_bits
     # Determining seL4_TCBBits
     if kernel_config.arch == KernelArch.AARCH64:
-        tcb_bits = 11
+        tcb_bits = 12
     elif kernel_config.arch == KernelArch.RISCV64:
         if kernel_config.have_fpu:
             tcb_bits = 11
