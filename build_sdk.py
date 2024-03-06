@@ -204,7 +204,7 @@ SUPPORTED_BOARDS = (
             "KernelIsMCS": True,
             "KernelArmExportPTMRUser": True,
             "KernelArmExportPCNTUser": True,
-            "KernelArmHypervisorSupport": True,
+            # "KernelArmHypervisorSupport": True,
             "KernelArmVtimerUpdateVOffset": False,
             "QEMU_MEMORY": 2048,
         },
@@ -301,7 +301,7 @@ SUPPORTED_BOARDS = (
         kernel_options = {
             "KernelPlatform": "odroidc4",
             "KernelIsMCS": True,
-            "KernelArmHypervisorSupport": True,
+            # "KernelArmHypervisorSupport": True,
             "KernelArmVtimerUpdateVOffset": False,
             "KernelIRQReporting": False,
         },
