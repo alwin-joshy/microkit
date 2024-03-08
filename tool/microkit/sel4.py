@@ -62,6 +62,7 @@ class KernelConfig:
     fan_out_limit: int
     have_fpu: bool
     hyp_mode: bool
+    debug_api: bool
     aarch64_smc_calls: bool
     num_cpus: int
     arm_pa_size_bits: Optional[int]
@@ -111,8 +112,15 @@ class Sel4Object(IntEnum):
 
 
     def get_size(self, kernel_config: KernelConfig) -> Optional[int]:
-        if kernel_config.arch == KernelArch.AARCH64 and kernel_config.hyp_mode and kernel_config.arm_pa_size_bits == 40 and self in AARCH64_HYP_OBJECT_SIZES:
-            return AARCH64_HYP_OBJECT_SIZES[self]
+        if kernel_config.arch == KernelArch.AARCH64:
+            if kernel_config.hyp_mode and kernel_config.arm_pa_size_bits == 40 and self in AARCH64_HYP_OBJECT_SIZES:
+                return AARCH64_HYP_OBJECT_SIZES[self]
+            elif kernel_config.debug_api and self in AARCH64_HW_DEBUG_API_OBJECTS:
+                return AARCH64_HW_DEBUG_API_OBJECTS[self]
+            elif self in FIXED_OBJECT_SIZES:
+                return FIXED_OBJECT_SIZES[self]
+            else:
+                return None
         elif kernel_config.arch == KernelArch.RISCV64 and kernel_config.hyp_mode and self in RISCV64_HYP_OBJECT_SIZES:
             return RISCV64_HYP_OBJECT_SIZES[self]
         elif self in FIXED_OBJECT_SIZES:
@@ -201,6 +209,10 @@ FIXED_OBJECT_SIZES = {
 
 AARCH64_HYP_OBJECT_SIZES = {
     Sel4Object.Vspace: 1 << 13,
+}
+
+AARCH64_HW_DEBUG_API_OBJECTS = {
+    Sel4Object.Tcb: 1 << 12,
 }
 
 RISCV64_HYP_OBJECT_SIZES = {
@@ -684,6 +696,99 @@ typedef struct seL4_UserContext_ {
 # Note that enum value of each system call label does not necessarily correspond
 # to the value used to invoke the system call.
 class Sel4Label(IntEnum):
+  # # Untyped
+  #   UntypedRetype = 1
+  #   # TCB
+  #   TCBReadRegisters = 2
+  #   TCBWriteRegisters = 3
+  #   TCBCopyRegisters = 4
+  #   TCBConfigure = 5
+  #   TCBSetPriority = 6
+  #   TCBSetMCPriority = 7
+  #   TCBSetSchedParams = 8
+  #   TCBSetTimeoutEndpoint = 9
+  #   TCBSetIPCBuffer = 10
+  #   TCBSetSpace = 11
+  #   TCBSuspend = 12
+  #   TCBResume = 13
+  #   TCBBindNotification = 14
+  #   TCBUnbindNotification = 15
+  #   TCBSetBreakpoint = 16
+  #   TCBGetBreakpoint = 17
+  #   TCBUnsetBreakpoint = 18
+  #   TCBConfigureSingleStepping = 19
+  #   TCBSetTLSBase = 20
+  #   # CNode
+  #   CNodeRevoke = 21
+  #   CNodeDelete = 22
+  #   CNodeCancelBadgedSends = 23
+  #   CNodeCopy = 24
+  #   CNodeMint = 25
+  #   CNodeMove = 26
+  #   CNodeMutate = 27
+  #   CNodeRotate = 28
+  #   # IRQ
+  #   IRQIssueIRQHandler = 29
+  #   IRQAckIRQ = 30
+  #   IRQSetIRQHandler = 31
+  #   IRQClearIRQHandler = 32
+  #   # Domain
+  #   DomainSetSet = 33
+  #   # Sched
+  #   SchedControlConfigureFlags = 34
+  #   SchedContextBind = 35
+  #   SchedContextUnbind = 36
+  #   SchedContextUnbindObject = 37
+  #   SchedContextConsumed = 38
+  #   SchedContextYieldTo = 39
+  #   # ARM V Space
+  #   ARMVSpaceClean_Data = 40
+  #   ARMVSpaceInvalidate_Data = 41
+  #   ARMVSpaceCleanInvalidate_Data = 42
+  #   ARMVSpaceUnify_Instruction = 43
+  #   ARMVSpaceRead_Word = 44
+  #   ARMVSpaceWrite_Word = 45
+  #   # ARM SMC forwarding
+  #   ARMSMCCall = 46
+  #   # ARM Page Table
+  #   ARMPageTableMap = 47
+  #   ARMPageTableUnmap = 48
+  #   # ARM Page
+  #   ARMPageMap = 49
+  #   ARMPageUnmap = 50
+  #   ARMPageClean_Data = 51
+  #   ARMPageInvalidate_Data = 52
+  #   ARMPageCleanInvalidate_Data = 53
+  #   ARMPageUnify_Instruction = 54
+  #   ARMPageGetAddress = 55
+  #   # ARM ASID
+  #   ARMASIDControlMakePool = 56
+  #   ARMASIDPoolAssign = 57
+  #   # ARM VCPU
+  #   ARMVCPUSetTCB = 58
+  #   ARMVCPUInjectIRQ = 59
+  #   ARMVCPUReadReg = 60
+  #   ARMVCPUWriteReg = 61
+  #   ARMVCPUAckVPPI = 62
+  #   # ARM IRQ
+  #   ARMIRQIssueIRQHandlerTrigger = 63
+  #   # RISC-V Page Table
+  #   RISCVPageTableMap = 64
+  #   RISCVPageTableUnmap = 65
+  #   # RISC-V Page
+  #   RISCVPageMap = 66
+  #   RISCVPageUnmap = 67
+  #   RISCVPageGetAddress = 68
+  #   # RISC-V ASID
+  #   RISCVASIDControlMakePool = 69
+  #   RISCVASIDPoolAssign = 70
+  #   # RISC-V IRQ
+  #   RISCVIRQIssueIRQHandlerTrigger = 71
+  #   # RISC-V VCPU
+  #   RISCVVCPUSetTCB = 72
+  #   RISCVVCPUReadReg = 73
+  #   RISCVVCPUWriteReg = 74
+
     # Untyped
     UntypedRetype = 1
     # TCB
@@ -701,85 +806,91 @@ class Sel4Label(IntEnum):
     TCBResume = 13
     TCBBindNotification = 14
     TCBUnbindNotification = 15
-    TCBSetBreakpoint = 16
-    TCBGetBreakpoint = 17
-    TCBUnsetBreakpoint = 18
-    TCBConfigureSingleStepping = 19
-    TCBSetTLSBase = 20
+    TCBSetTLSBase = 16
     # CNode
-    CNodeRevoke = 21
-    CNodeDelete = 22
-    CNodeCancelBadgedSends = 23
-    CNodeCopy = 24
-    CNodeMint = 25
-    CNodeMove = 26
-    CNodeMutate = 27
-    CNodeRotate = 28
+    CNodeRevoke = 17
+    CNodeDelete = 18
+    CNodeCancelBadgedSends = 19
+    CNodeCopy = 20
+    CNodeMint = 21
+    CNodeMove = 22
+    CNodeMutate = 23
+    CNodeRotate = 24
     # IRQ
-    IRQIssueIRQHandler = 29
-    IRQAckIRQ = 30
-    IRQSetIRQHandler = 31
-    IRQClearIRQHandler = 32
+    IRQIssueIRQHandler = 25
+    IRQAckIRQ = 26
+    IRQSetIRQHandler = 27
+    IRQClearIRQHandler = 28
     # Domain
-    DomainSetSet = 33
+    DomainSetSet = 29
     # Sched
-    SchedControlConfigureFlags = 34
-    SchedContextBind = 35
-    SchedContextUnbind = 36
-    SchedContextUnbindObject = 37
-    SchedContextConsumed = 38
-    SchedContextYieldTo = 39
+    SchedControlConfigureFlags = 30
+    SchedContextBind = 31
+    SchedContextUnbind = 32
+    SchedContextUnbindObject = 33
+    SchedContextConsumed = 34
+    SchedContextYieldTo = 35
     # ARM V Space
-    ARMVSpaceClean_Data = 40
-    ARMVSpaceInvalidate_Data = 41
-    ARMVSpaceCleanInvalidate_Data = 42
-    ARMVSpaceUnify_Instruction = 43
-    ARMVSpaceRead_Word = 44
-    ARMVSpaceWrite_Word = 45
+    ARMVSpaceClean_Data = 36
+    ARMVSpaceInvalidate_Data = 37
+    ARMVSpaceCleanInvalidate_Data = 38
+    ARMVSpaceUnify_Instruction = 39
     # ARM SMC forwarding
-    ARMSMCCall = 46
+    ARMSMCCall = 40
     # ARM Page Table
-    ARMPageTableMap = 47
-    ARMPageTableUnmap = 48
+    ARMPageTableMap = 41
+    ARMPageTableUnmap = 42
     # ARM Page
-    ARMPageMap = 49
-    ARMPageUnmap = 50
-    ARMPageClean_Data = 51
-    ARMPageInvalidate_Data = 52
-    ARMPageCleanInvalidate_Data = 53
-    ARMPageUnify_Instruction = 54
-    ARMPageGetAddress = 55
+    ARMPageMap = 43
+    ARMPageUnmap = 44
+    ARMPageClean_Data = 45
+    ARMPageInvalidate_Data = 46
+    ARMPageCleanInvalidate_Data = 47
+    ARMPageUnify_Instruction = 48
+    ARMPageGetAddress = 49
     # ARM ASID
-    ARMASIDControlMakePool = 56
-    ARMASIDPoolAssign = 57
+    ARMASIDControlMakePool = 50
+    ARMASIDPoolAssign = 51
     # ARM VCPU
-    ARMVCPUSetTCB = 58
-    ARMVCPUInjectIRQ = 59
-    ARMVCPUReadReg = 60
-    ARMVCPUWriteReg = 61
-    ARMVCPUAckVPPI = 62
+    ARMVCPUSetTCB = 52
+    ARMVCPUInjectIRQ = 53
+    ARMVCPUReadReg = 54
+    ARMVCPUWriteReg = 55
+    ARMVCPUAckVPPI = 56
     # ARM IRQ
-    ARMIRQIssueIRQHandlerTrigger = 63
+    ARMIRQIssueIRQHandlerTrigger = 57
     # RISC-V Page Table
-    RISCVPageTableMap = 64
-    RISCVPageTableUnmap = 65
+    RISCVPageTableMap = 58
+    RISCVPageTableUnmap = 59
     # RISC-V Page
-    RISCVPageMap = 66
-    RISCVPageUnmap = 67
-    RISCVPageGetAddress = 68
+    RISCVPageMap = 60
+    RISCVPageUnmap = 61
+    RISCVPageGetAddress = 62
     # RISC-V ASID
-    RISCVASIDControlMakePool = 69
-    RISCVASIDPoolAssign = 70
+    RISCVASIDControlMakePool = 63
+    RISCVASIDPoolAssign = 64
     # RISC-V IRQ
-    RISCVIRQIssueIRQHandlerTrigger = 71
+    RISCVIRQIssueIRQHandlerTrigger = 65
     # RISC-V VCPU
-    RISCVVCPUSetTCB = 72
-    RISCVVCPUReadReg = 73
-    RISCVVCPUWriteReg = 74
+    RISCVVCPUSetTCB = 66
+    RISCVVCPUReadReg = 67
+    RISCVVCPUWriteReg = 68
+    # Hardware debug API
+    TCBSetBreakpoint = 69
+    TCBGetBreakpoint = 70
+    TCBUnsetBreakpoint = 71
+    TCBConfigureSingleStepping = 72
+    # VSpace read/write word
+    ARMVSpaceRead_Word = 73
+    ARMVSpaceWrite_Word = 74
 
     def get_id(self, kernel_config: KernelConfig) -> int:
         if kernel_config.arch == KernelArch.AARCH64:
-            if kernel_config.hyp_mode and self in AARCH64_HYP_LABELS:
+            # if kernel_config.hyp_mode and kernel_config.debug_api and self in AARCH64_HYP_HW_DEBUG_API_LABELS:
+                # return AARCH64_HYP_HW_DEBUG_API_LABELS[self]
+            if kernel_config.debug_api and self in AARCH64_HW_DEBUG_API_LABELS:
+                return AARCH64_HW_DEBUG_API_LABELS[self]
+            elif kernel_config.hyp_mode and self in AARCH64_HYP_LABELS:
                 return AARCH64_HYP_LABELS[self]
             elif self in AARCH64_LABELS:
                 return AARCH64_LABELS[self]
@@ -802,6 +913,28 @@ AARCH64_LABELS = {
     Sel4Label.ARMIRQIssueIRQHandlerTrigger: 58
 }
 
+# AARCH64_HYP_LABELS = {
+#     # ARM VCPU
+#     Sel4Label.ARMVCPUSetTCB: 52,
+#     Sel4Label.ARMVCPUInjectIRQ: 53,
+#     Sel4Label.ARMVCPUReadReg: 54,
+#     Sel4Label.ARMVCPUWriteReg: 55,
+#     Sel4Label.ARMVCPUAckVPPI: 56,
+#     # ARM IRQ
+#     Sel4Label.ARMIRQIssueIRQHandlerTrigger: 57
+# }
+
+# AARCH64_HYP_HW_DEBUG_API_LABELS = {
+#     # ARM VCPU
+#     Sel4Label.ARMVCPUSetTCB: 58,
+#     Sel4Label.ARMVCPUInjectIRQ: 59,
+#     Sel4Label.ARMVCPUReadReg: 60,
+#     Sel4Label.ARMVCPUWriteReg: 61,
+#     Sel4Label.ARMVCPUAckVPPI: 62,
+#     # ARM IRQ
+#     Sel4Label.ARMIRQIssueIRQHandlerTrigger: 63
+# }
+
 AARCH64_HYP_LABELS = {
     # ARM VCPU
     Sel4Label.ARMVCPUSetTCB: 58,
@@ -811,6 +944,86 @@ AARCH64_HYP_LABELS = {
     Sel4Label.ARMVCPUAckVPPI: 62,
     # ARM IRQ
     Sel4Label.ARMIRQIssueIRQHandlerTrigger: 63
+}
+
+# @alwin: this is horrendous, there has to be a better way
+AARCH64_HW_DEBUG_API_LABELS = {
+    Sel4Label.TCBSetBreakpoint: 16,
+    Sel4Label.TCBGetBreakpoint: 17,
+    Sel4Label.TCBUnsetBreakpoint: 18,
+    Sel4Label.TCBConfigureSingleStepping: 19,
+    Sel4Label.TCBSetTLSBase: 20,
+    # CNode
+    Sel4Label.CNodeRevoke: 21,
+    Sel4Label.CNodeDelete: 22,
+    Sel4Label.CNodeCancelBadgedSends: 23,
+    Sel4Label.CNodeCopy: 24,
+    Sel4Label.CNodeMint: 25,
+    Sel4Label.CNodeMove: 26,
+    Sel4Label.CNodeMutate: 27,
+    Sel4Label.CNodeRotate: 28,
+    # IRQ
+    Sel4Label.IRQIssueIRQHandler: 29,
+    Sel4Label.IRQAckIRQ: 30,
+    Sel4Label.IRQSetIRQHandler: 31,
+    Sel4Label.IRQClearIRQHandler: 32,
+    # Domain
+    Sel4Label.DomainSetSet: 33,
+    # Sched
+    Sel4Label.SchedControlConfigureFlags: 34,
+    Sel4Label.SchedContextBind: 35,
+    Sel4Label.SchedContextUnbind: 36,
+    Sel4Label.SchedContextUnbindObject: 37,
+    Sel4Label.SchedContextConsumed: 38,
+    Sel4Label.SchedContextYieldTo: 39,
+     # ARM V Space
+    Sel4Label.ARMVSpaceClean_Data: 40,
+    Sel4Label.ARMVSpaceInvalidate_Data: 41,
+    Sel4Label.ARMVSpaceCleanInvalidate_Data: 42,
+    Sel4Label.ARMVSpaceUnify_Instruction: 43,
+    # @alwin: TODO: Get rid of this once a better soln is implemented
+    Sel4Label.ARMVSpaceRead_Word: 44,
+    Sel4Label.ARMVSpaceWrite_Word: 45,
+    # ARM SMC forwarding
+    Sel4Label.ARMSMCCall: 46,
+    # ARM Page Table
+    Sel4Label.ARMPageTableMap: 47,
+    Sel4Label.ARMPageTableUnmap: 48,
+    # ARM Page
+    Sel4Label.ARMPageMap: 49,
+    Sel4Label.ARMPageUnmap: 50,
+    Sel4Label.ARMPageClean_Data: 51,
+    Sel4Label.ARMPageInvalidate_Data: 52,
+    Sel4Label.ARMPageCleanInvalidate_Data: 53,
+    Sel4Label.ARMPageUnify_Instruction: 54,
+    Sel4Label.ARMPageGetAddress: 55,
+    # ARM ASID
+    Sel4Label.ARMASIDControlMakePool: 56,
+    Sel4Label.ARMASIDPoolAssign: 57,
+    # ARM VCPU
+    Sel4Label.ARMVCPUSetTCB: 58,
+    Sel4Label.ARMVCPUInjectIRQ: 59,
+    Sel4Label.ARMVCPUReadReg: 60,
+    Sel4Label.ARMVCPUWriteReg: 61,
+    Sel4Label.ARMVCPUAckVPPI: 62,
+    # ARM IRQ
+    Sel4Label.ARMIRQIssueIRQHandlerTrigger: 63,
+    # RISC-V Page Table
+    Sel4Label.RISCVPageTableMap: 64,
+    Sel4Label.RISCVPageTableUnmap: 65,
+    # RISC-V Page
+    Sel4Label.RISCVPageMap: 66,
+    Sel4Label.RISCVPageUnmap: 67,
+    Sel4Label.RISCVPageGetAddress: 68,
+    # RISC-V ASID
+    Sel4Label.RISCVASIDControlMakePool: 69,
+    Sel4Label.RISCVASIDPoolAssign: 70,
+    # RISC-V IRQ
+    Sel4Label.RISCVIRQIssueIRQHandlerTrigger: 71,
+    # RISC-V VCPU
+    Sel4Label.RISCVVCPUSetTCB: 72,
+    Sel4Label.RISCVVCPUReadReg: 73,
+    Sel4Label.RISCVVCPUWriteReg: 74
 }
 
 RISCV_LABELS = {
@@ -1499,7 +1712,10 @@ def calculate_rootserver_size(kernel_config: KernelConfig, initial_task_region: 
     root_cnode_bits = kernel_config.root_cnode_bits
     # Determining seL4_TCBBits
     if kernel_config.arch == KernelArch.AARCH64:
-        tcb_bits = 12
+        if kernel_config.debug_api:
+            tcb_bits = 12
+        else:
+            tcb_bits = 11
     elif kernel_config.arch == KernelArch.RISCV64:
         if kernel_config.have_fpu:
             tcb_bits = 11

@@ -1954,6 +1954,7 @@ def main() -> int:
 
     hyp_mode = sel4_config.get("ARM_HYPERVISOR_SUPPORT", False) or \
                 sel4_config.get("RISCV_HYPERVISOR_SUPPORT", False)
+    debug_api = sel4_config.get("HARDWARE_DEBUG_API", False)
     if sel4_arch == "aarch64":
         if sel4_config["ARM_PA_SIZE_BITS_40"]:
             arm_pa_size_bits = 40
@@ -1977,6 +1978,7 @@ def main() -> int:
         fan_out_limit = int(sel4_config["RETYPE_FAN_OUT_LIMIT"]),
         have_fpu = sel4_config["HAVE_FPU"],
         hyp_mode = hyp_mode,
+        debug_api = debug_api,
         aarch64_smc_calls = aarch64_smc_calls,
         num_cpus = int(sel4_config["MAX_NUM_NODES"]),
         # @ivanv: Perhaps there is a better way of seperating out arch specific config and regular config
