@@ -216,6 +216,17 @@ static void putc(uint8_t ch)
     while ((*UART_REG(UARTFR) & PL011_UARTFR_TXFF) != 0);
     *UART_REG(UARTDR) = ch;
 }
+#elif defined(BOARD_orin)
+#define UART_BASE 0x03100000
+#define UART_THR 0x0
+#define UART_LSR 0x14
+#define UART_LSR_THR_EMPTY (1 << 5)
+static void putc(uint8_t ch)
+{
+    while (((*UART_REG(UART_LSR) & UART_LSR_THR_EMPTY) == UART_LSR_THR_EMPTY)) {
+        *UART_REG(UART_THR) = ch;
+    }
+}
 
 #elif defined(ARCH_riscv64)
 #define SBI_CONSOLE_PUTCHAR 1
