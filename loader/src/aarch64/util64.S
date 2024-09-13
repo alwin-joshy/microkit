@@ -25,6 +25,7 @@
 #define MT_DEVICE_GRE     2
 #define MT_NORMAL_NC      3
 #define MT_NORMAL         4
+#define MT_NORMAL_WT      5
 #define MAIR(_attr, _mt)  ((_attr) << ((_mt) * 8))
 
 #define TCR_T0SZ(x)       ((64 - (x)))
@@ -198,7 +199,7 @@ END_FUNC(flush_dcache)
 /* Invalidate the I-cache */
 BEGIN_FUNC(invalidate_icache)
     ic      iallu
-    dsb     nsh
+    dsb     sy
     isb
     ret
 END_FUNC(invalidate_icache)
@@ -344,61 +345,86 @@ BEGIN_FUNC(el2_mmu_enable)
     stp     x29, x30, [sp, #-16]!
     mov     x29, sp
 
-    /* Disable caches */
-    bl      flush_dcache
-
-    /* Ensure I-cache, D-cache and mmu are disabled for EL2/Stage1 */
-    disable_mmu sctlr_el2, x8
-
-    /*
-     * Invalidate the local I-cache so that any instructions fetched
-     * speculatively are discarded.
+   /* Load MAIR & TCR values; construct TTBR address before disabling and re-
+     * enabling the MMU & caches.
      */
-    bl      invalidate_icache
-
     /*
      *   DEVICE_nGnRnE      000     00000000
      *   DEVICE_nGnRE       001     00000100
      *   DEVICE_GRE         010     00001100
      *   NORMAL_NC          011     01000100
      *   NORMAL             100     11111111
+     *   NORMAL_WT          101     10101010
      */
     ldr     x5, =MAIR(0x00, MT_DEVICE_nGnRnE) | \
                  MAIR(0x04, MT_DEVICE_nGnRE) | \
                  MAIR(0x0c, MT_DEVICE_GRE) | \
                  MAIR(0x44, MT_NORMAL_NC) | \
-                 MAIR(0xff, MT_NORMAL)
-    msr     mair_el2, x5
+                 MAIR(0xff, MT_NORMAL) | \
+                 MAIR(0xaa, MT_NORMAL_WT)
 
     ldr     x8, =TCR_T0SZ(48) | TCR_IRGN0_WBWC | TCR_ORGN0_WBWC | TCR_SH0_ISH | TCR_TG0_4K | TCR_PS | TCR_EL2_RES1
+
+
+    /* Use x16 as temp register */
+    disable_mmu  sctlr_el2, x16
+
+    msr     mair_el2, x5
     msr     tcr_el2, x8
     isb
 
-    /* Setup page tables */
+    /* For non-VHE the "down" contains both the the kernel mapping and 1:1 mapping. */
     adrp    x8, boot_lvl0_lower
     msr     ttbr0_el2, x8
     isb
 
-    /* invalidate all TLB entries for EL2 */
+     /* Invalidate TLBs */
+    dsb     sy
     tlbi    alle2is
+    tlbi    vmalls12e1
+    dsb     sy
+
+    tlbi    vmalle1is
     dsb     ish
+    isb
+
+    /* Invalidate icache */
+    ic  ialluis
+    dsb sy
     isb
 
     enable_mmu  sctlr_el2, x8
-
-    /* Invalidate instruction cache */
-    ic  ialluis
-    dsb ish
-    isb
-    /* invalidate all TLB entries for EL2 */
-    tlbi    alle2is
-    dsb     ish
-    isb
+    /* NOTE: enable_mmu already contains an isb after enabling. */
 
     ldp     x29, x30, [sp], #16
     ret
 
 END_FUNC(el2_mmu_enable)
+
+BEGIN_FUNC(clean_dcache_by_range)
+    /* Ordering needed for strongly-ordered mem, not needed for NORMAL mem.
+     * See ARM DDI 0487I.a, page D7-5063.
+     */
+    dmb     sy
+
+    /* Extract minimum DCache CL size into x3 and CL mask into x4 */
+    mrs x2, ctr_el0
+    ubfx x4, x2, #16, #4
+    mov x3, #4
+    lsl x3, x3, x4
+    sub x4, x3, #1
+
+    /* Apply mask to start address before entering the loop */
+    bic x4, x0, x4
+clean_dcache_by_range_loop:
+    dc cvac, x4
+    add x4, x4, x3
+    cmp x4, x1
+    b.lt clean_dcache_by_range_loop
+    dsb sy
+    isb
+    ret
+END_FUNC(clean_dcache_by_range)
 
 .extern exception_handler
 .extern exception_register_state

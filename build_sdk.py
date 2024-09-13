@@ -193,13 +193,14 @@ SUPPORTED_BOARDS = (
         name="orin",
         arch=KernelArch.AARCH64,
         gcc_cpu="cortex-a78",
-        loader_link_address=0x70000000,
+        loader_link_address=0x100000000,
         kernel_options={
             "KernelPlatform": "orin",
             "KernelIsMCS": True,
             "KernelArmExportPCNTUser": True,
             "KernelArmHypervisorSupport": True,
             "KernelArmVtimerUpdateVOffset": False,
+            "KernelPrinting": True,
         },
         examples={
         }

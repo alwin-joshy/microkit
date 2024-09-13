@@ -443,6 +443,7 @@ impl<'a> Loader<'a> {
             .find_symbol("boot_lvl0_upper")
             .expect("Could not find 'boot_lvl0_upper' symbol");
 
+        
         let mut boot_lvl0_lower: [u8; PAGE_TABLE_SIZE] = [0; PAGE_TABLE_SIZE];
         boot_lvl0_lower[..8].copy_from_slice(&(boot_lvl1_lower_addr | 3).to_le_bytes());
 
@@ -451,8 +452,10 @@ impl<'a> Loader<'a> {
             #[allow(clippy::identity_op)] // keep the (0 << 2) for clarity
             let pt_entry: u64 = ((i as u64) << AARCH64_1GB_BLOCK_BITS) |
                 (1 << 10) | // access flag
-                (0 << 2) | // strongly ordered memory
-                (1); // 1G block
+                (3 << 8)  |  // inner-shareable
+                if (i == 0) {(0 << 2)} else {4 << 2} | // Map first 1G as strongly ordered due to UART residing here. Otherwise, normal memory.
+                (1)       |  // 1G block
+                if (i == 0) {(1 << 54) | (1 << 53) } else {0}; // Set exec never for device memory.
             let start = 8 * i;
             let end = 8 * (i + 1);
             boot_lvl1_lower[start..end].copy_from_slice(&pt_entry.to_le_bytes());

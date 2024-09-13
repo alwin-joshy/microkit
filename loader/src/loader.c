@@ -85,6 +85,7 @@ void switch_to_el1(void);
 void switch_to_el2(void);
 void el1_mmu_enable(void);
 void el2_mmu_enable(void);
+void clean_dcache_by_range(uintptr_t start, uintptr_t end);
 
 char _stack[STACK_SIZE] ALIGN(16);
 
@@ -107,8 +108,9 @@ uint64_t boot_lvl2_pt[1 << 9] ALIGN(1 << 12);
 uint64_t boot_lvl2_pt_elf[1 << 9] ALIGN(1 << 12);
 #endif
 
-extern char _text;
-extern char _bss_end;
+extern char _text[];
+extern char _bss_end[];
+extern char _end[];
 const struct loader_data *loader_data = (void *) &_bss_end;
 
 static void memcpy(void *dst, const void *src, size_t sz)
@@ -217,15 +219,30 @@ static void putc(uint8_t ch)
     *UART_REG(UARTDR) = ch;
 }
 #elif defined(BOARD_orin)
-#define UART_BASE 0x03100000
+#define UART_BASE 0xc168000
 #define UART_THR 0x0
 #define UART_LSR 0x14
 #define UART_LSR_THR_EMPTY (1 << 5)
+#define TCU_TX_REG              (0)
+#define TX_NUM_BYTES_FIELD_BIT  (24)
+#define TX_FLUSH_BIT            (26)
+#define TX_INTR_TRIGGER_BIT     (31)
 static void putc(uint8_t ch)
 {
-    while (((*UART_REG(UART_LSR) & UART_LSR_THR_EMPTY) == UART_LSR_THR_EMPTY)) {
-        *UART_REG(UART_THR) = ch;
+    uint32_t reg_val;
+
+    /* We are writing one byte */
+    reg_val = (uint32_t)(1UL << TX_NUM_BYTES_FIELD_BIT);
+    reg_val |= 1 << (TX_INTR_TRIGGER_BIT);
+    reg_val |= ch;
+
+    if (ch == '\r' || ch == '\n') {
+        reg_val |= 1 << (TX_FLUSH_BIT);
     }
+
+    while (*UART_REG(TCU_TX_REG) & (1 << (TX_INTR_TRIGGER_BIT)));
+
+    *UART_REG(TCU_TX_REG) = reg_val;
 }
 
 #elif defined(ARCH_riscv64)
@@ -309,7 +326,7 @@ static void puthex(uintptr_t val)
 static enum el current_el(void)
 {
     /* See: C5.2.1 CurrentEL */
-    uint32_t val;
+    uint32_t val = 1;
     asm volatile("mrs %x0, CurrentEL" : "=r"(val) :: "cc");
     /* bottom two bits are res0 */
     return (enum el) val >> 2;
@@ -501,6 +518,7 @@ static void copy_data(void)
         puthex32(i);
         puts("\n");
         memcpy((void *)(uintptr_t)r->load_addr, base + r->offset, r->size);
+        clean_dcache_by_range((uintptr_t)r->load_addr, (uintptr_t)r->load_addr + r->size);
     }
 }
 
@@ -559,6 +577,7 @@ static int ensure_correct_el(void)
 
 static void start_kernel(void)
 {
+
     ((sel4_entry)(loader_data->kernel_entry))(
         loader_data->ui_p_reg_start,
         loader_data->ui_p_reg_end,
@@ -680,6 +699,8 @@ int main(void)
     if (el == EL1) {
         el1_mmu_enable();
     } else if (el == EL2) {
+        // Clean the altloader data cache.
+        clean_dcache_by_range((uintptr_t) _text, (uintptr_t) _end);
         el2_mmu_enable();
     } else {
         puts("LDR|ERROR: unknown EL level for MMU enable\n");
