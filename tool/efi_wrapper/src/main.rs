@@ -1,12 +1,16 @@
 #![no_main]
 #![no_std]
 
-use log::info;
-use uefi::{boot::{AllocateType, MemoryType}, mem::memory_map::MemoryMap, prelude::*, system};
+use log::{info, error};
 use core::{arch::asm, slice};
+use uefi::prelude::*;
+use uefi::boot::{AllocateType, MemoryType};
+use uefi::mem::memory_map::MemoryMap;
+use uefi::system;
 
 const bytes: &[u8] = include_bytes!(env!("LOADER_FILE"));
 const load_addr_str: &str = env!("LOADER_ADDRESS");
+
 
 #[entry]
 fn main(_image_handle: Handle, system_table: SystemTable<Boot>) -> Status {
