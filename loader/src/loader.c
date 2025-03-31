@@ -728,6 +728,19 @@ void relocation_log(uint64_t reloc_addr, uint64_t curr_addr)
     puts("\n");
 }
 
+#if defined(BOARD_imx8mp_evk)
+
+#define IMX_FLEXCAN0_ADDR 0x308c0000
+
+// HACK: Export flexcan module to userspace
+void imx8mp_init_can() {
+    volatile uint32_t *addr = (uint32_t *) IMX_FLEXCAN0_ADDR;
+    uint32_t val = *addr;
+    *addr = val & ~(1 << 23);
+}
+
+#endif
+
 int main(void)
 {
     uart_init();
@@ -738,6 +751,10 @@ int main(void)
         puts("LDR|ERROR: mismatch on loader data structure magic number\n");
         goto fail;
     }
+
+#if defined(BOARD_imx8mp_evk)
+    imx8mp_init_can();
+#endif
 
     print_loader_data();
 
